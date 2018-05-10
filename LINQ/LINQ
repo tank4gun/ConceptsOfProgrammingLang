@@ -1,0 +1,57 @@
+class Sequence:
+    def __init__(self, generator):
+        self.seq = generator
+
+    def Select(self, function, generator):
+        for element in generator:
+            yield function(element)
+
+
+    def Flatten(self):
+        new_seq = []
+        for seq in self.seq:
+            new_seq.append(seq)
+        self.seq = new_seq
+        return self.seq
+
+    def Where(self, function, generator):
+        for element in generator:
+            if function(element):
+                yield element
+
+    def Take(self, k, generator):
+        for i in range(k):
+            yield next(generator)
+
+    def GroupBy(self, function, generator):
+        ans = {}
+        for element in generator:
+            val = function(element)
+            if ans.get(val) is None:
+                ans[val] = [element]
+            else:
+                ans[val].append(element)
+        return ans
+
+    def OrderBy(self, function):
+        return sorted(self.seq, key=function)
+
+    def ToList(self, generator):
+        new_list = []
+        for element in generator:
+            new_list.append(element)
+        return new_list
+
+
+def FibGener():
+    a = 1
+    b = 0
+    while True:
+        yield a
+        a, b = b + a, a
+
+
+a = Sequence([i for i in range(5)])
+fib = FibGener()
+
+print(a.ToList(a.Take(5, a.Select(lambda x: x ** 2 if x % 2 == 0 else x, a.Where(lambda x: x % 3 == 0, fib)))))
