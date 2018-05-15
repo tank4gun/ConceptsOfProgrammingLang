@@ -73,17 +73,28 @@ public:
     Info class_info;
 };
 
+void UpdateParents(std::string class_name, int size) {
+    std::unordered_map<std::string, ClassWithParents>::iterator it;
+    it = class_structure.begin();
+    for(; it != class_structure.end(); it++) {
+        for(int i = 0; i < (*it).second.parents.size(); i++) {
+            if ((*it).second.parents[i] == class_name) {
+                (*it).second.parents_sizes[i] = size;
+            }
+        }
+    }
+}
+
 
 #define TYPEID(entity) \
 (entity).class_info
 
 #define RTTI(class_name) \
-void* RTTI##class_name = [this] { \
 std::string class_name_ = #class_name; \
 class_info = Info(class_name_); \
 class_structure[#class_name].self_size = sizeof(class_name) - sizeof(TypeInfo); \
-return nullptr; \
-} ();
+UpdateParents(#class_name, class_structure[#class_name].self_size); \
+
 
 std::pair<bool, int> findshift(std::string ptr, std::string class_name) {
     std::string type;
@@ -102,7 +113,7 @@ std::pair<bool, int> findshift(std::string ptr, std::string class_name) {
     int shift = 0;
     std::pair<bool, int> ans;
     for(int i = 0; i < class_structure[type].parents.size(); i++) {
-        ans = findshift(class_name, class_structure[type].parents[i]);
+        ans = findshift(class_structure[type].parents[i], class_name);
         if(ans.first) {
             return std::make_pair(true, shift + ans.second);
         }
@@ -113,24 +124,30 @@ std::pair<bool, int> findshift(std::string ptr, std::string class_name) {
 
 
 #define DYNAMIC_CAST(curr_obj, type) \
-(findshift(TYPEID(*curr_obj).name, #type).first ? reinterpret_cast<type*>(findshift(TYPEID(*curr_obj).name, #type).second + curr_obj) : nullptr)
+(findshift(TYPEID(*curr_obj).name, #type).first ? reinterpret_cast<type*>(findshift(TYPEID(*curr_obj).name, #type).second + reinterpret_cast<char*>(curr_obj)) : nullptr)
 
 
 Class(A) {
 public:
-    RTTI(A)
+    A() {
+        RTTI(A)
+    }
     int a;
 };
 
 Class(B) {
 public:
-    RTTI(B);
+    B() {
+        RTTI(B)
+    }
     int b;
 };
 
 ClassInheret(C, public A, public B) {
 public:
-    RTTI(C);
+    C() {
+        RTTI(C)
+    }
     int c;
 };
 
@@ -141,13 +158,12 @@ int main()
     A* second_class = new A();
     Info info = TYPEID(*first_class);
     std::cout << info.name << " " << info.hash << std::endl << sizeof(A) << std::endl;
-
     if(DYNAMIC_CAST(first_class, C) != nullptr) {
         std::cout << "True\n";
     } else {
         std::cout << "False\n";
     }
-    if(DYNAMIC_CAST(first_class, B) != nullptr) {
+    if(DYNAMIC_CAST(DYNAMIC_CAST(first_class, B), A) != nullptr) {
         std::cout << "True\n";
     } else {
         std::cout << "False\n";
